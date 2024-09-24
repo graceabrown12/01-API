@@ -1,0 +1,80 @@
+url = 'https://www.saferproducts.gov/RestWebServices/Recall'
+#query = '?format=json&ProductType=Phone' #29
+#query = '?format=json&ProductType=Grill' #70
+#query = '?format=json&ProductType=Exercise' # 91
+query = '?format=json&RecallTitle=Gas' # 216
+
+import requests
+#header = {'User-Agent': 
+#          'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0'}
+header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+#raw = requests.get(url+query,headers=header)
+raw = requests.get(url+query) 
+data = raw.json()
+
+import urllib.request
+import json
+import pickle
+response = urllib.request.urlopen(url+query)
+response_bytes = response.read()
+data = json.loads(response_bytes)
+response.close() 
+
+import pickle
+with open('json_data.pkl', 'wb') as file:
+    pickle.dump(data, file)
+
+import pandas as pd
+df = pd.DataFrame.from_dict(data)
+print(df.shape)
+df.head()
+
+df.columns
+
+df['ManufacturerCountries'].value_counts()
+
+temp = df['ManufacturerCountries']
+clean_values = []
+for i in range(len(temp)):
+    if len(temp[i])==1 :
+        clean_values.append( str(temp[i][0]['Country']) )
+    elif len(temp[i])>1:
+        countries = []
+        for j in range(len(temp[i])):
+            countries.append( temp[i][j]['Country'] )
+        clean_values.append( str(countries) )
+    else:
+        clean_values.append('')
+df['mnf_country'] = clean_values
+
+df['mnf_country'].value_counts()
+
+def flatten(var):
+    """ Flattens a value, recursively concatenating dictionary values. """
+    temp = df[var] 
+    clean_values = [] 
+    key = [*temp[0][0]][0] 
+    for i in range(len(temp)):
+        if len(temp[i])==1 : 
+            clean_values.append( str(temp[i][0][key]) ) 
+        elif len(temp[i])>1:
+            new_values = [] 
+            for j in range(len(temp[i])): 
+                new_values.append( temp[i][j][key] ) 
+            clean_values.append(str(new_values) ) 
+        else:
+            clean_values.append('') 
+    return clean_values
+
+df['remedy'] = flatten('RemedyOptions')
+df['remedy'].value_counts()
+
+df['remedy'].hist(grid=False,xrot=90)
+
+df['mnf_country'].hist(grid=False,xrot=90,bins=30)
+
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.crosstab( df['remedy'],df['mnf_country'] )
+
+#EDA did not work well on my computer, I had a lot of trouble downloading the data from the website for this assignment. I had issues with missing data and incomplete files downloading. I'm hoping this will be resolved for the future. 
